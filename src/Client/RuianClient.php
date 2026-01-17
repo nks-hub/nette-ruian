@@ -127,6 +127,180 @@ class RuianClient
     }
 
     /**
+     * Get all municipalities from all regions (for autocomplete)
+     *
+     * Results are cached for longer period (7 days by default) since municipality list rarely changes.
+     *
+     * @return Municipality[]
+     */
+    public function getAllMunicipalities(): array
+    {
+        $cacheKey = 'all_municipalities';
+
+        if ($this->cacheEnabled) {
+            $cached = $this->cache->load($cacheKey);
+            if ($cached !== null) {
+                return $cached;
+            }
+        }
+
+        $regions = $this->getRegions();
+        $municipalities = [];
+
+        foreach ($regions as $region) {
+            $regionMunicipalities = $this->getMunicipalities($region->regionId);
+            foreach ($regionMunicipalities as $municipality) {
+                $municipalities[] = $municipality;
+            }
+        }
+
+        // Sort by name
+        usort($municipalities, fn(Municipality $a, Municipality $b) => strcmp($a->municipalityName, $b->municipalityName));
+
+        if ($this->cacheEnabled) {
+            $this->cache->save($cacheKey, $municipalities, [
+                Cache::Expire => $this->cacheTtl * 7, // Cache for 7x longer (week)
+            ]);
+        }
+
+        return $municipalities;
+    }
+
+    /**
+     * Search municipalities by name prefix (for autocomplete/typeahead)
+     *
+     * @param string $query Search query (min 2 characters)
+     * @param int $limit Maximum results to return
+     * @return Municipality[]
+     */
+    public function searchMunicipalities(string $query, int $limit = 10): array
+    {
+        $query = trim($query);
+        if (mb_strlen($query) < 2) {
+            return [];
+        }
+
+        $queryLower = mb_strtolower($query);
+        $municipalities = $this->getAllMunicipalities();
+
+        $results = [];
+        $startsWithResults = [];
+        $containsResults = [];
+
+        foreach ($municipalities as $municipality) {
+            $nameLower = mb_strtolower($municipality->municipalityName);
+
+            if (str_starts_with($nameLower, $queryLower)) {
+                $startsWithResults[] = $municipality;
+            } elseif (str_contains($nameLower, $queryLower)) {
+                $containsResults[] = $municipality;
+            }
+
+            if (count($startsWithResults) >= $limit) {
+                break;
+            }
+        }
+
+        // Prioritize results that start with query
+        $results = array_merge($startsWithResults, $containsResults);
+
+        return array_slice($results, 0, $limit);
+    }
+
+    /**
+     * Find full address by components (combined query)
+     *
+     * Convenience method that validates and returns full address details.
+     *
+     * @param string $municipalityName Municipality name
+     * @param string|null $street Street name (optional)
+     * @param string|null $cp Descriptive number (optional)
+     * @param string|null $co Orientation number (optional)
+     * @param int|string|null $zip Postal code (optional)
+     */
+    public function findAddress(
+        string $municipalityName,
+        ?string $street = null,
+        ?string $cp = null,
+        ?string $co = null,
+        int|string|null $zip = null,
+    ): ValidateResult {
+        $params = ['municipalityName' => $municipalityName];
+
+        if ($street !== null) {
+            $params['street'] = $street;
+        }
+        if ($cp !== null) {
+            $params['cp'] = $cp;
+        }
+        if ($co !== null) {
+            $params['co'] = $co;
+        }
+        if ($zip !== null) {
+            $params['zip'] = $zip;
+        }
+
+        return $this->validate($params);
+    }
+
+    /**
+     * Get complete address hierarchy (region -> municipality -> streets)
+     *
+     * Returns all streets for a municipality with region context.
+     *
+     * @return array{region: Region|null, municipality: Municipality|null, streets: Street[]}
+     */
+    public function getAddressHierarchy(int $municipalityId): array
+    {
+        // First validate to get region info
+        $validateResult = $this->validate(['municipalityId' => $municipalityId]);
+
+        $region = null;
+        $municipality = null;
+
+        if ($validateResult->place !== null) {
+            $place = $validateResult->place;
+
+            if ($place->regionId !== null && $place->regionName !== null) {
+                $region = new Region($place->regionId, $place->regionName);
+            }
+
+            $municipality = new Municipality($place->municipalityId, $place->municipalityName);
+        }
+
+        $streets = $this->getStreets($municipalityId);
+
+        return [
+            'region' => $region,
+            'municipality' => $municipality,
+            'streets' => $streets,
+        ];
+    }
+
+    /**
+     * Validate and get full address details including all place options on the street
+     *
+     * @return array{result: ValidateResult, places: Place[]}
+     */
+    public function validateWithPlaces(array $params): array
+    {
+        $result = $this->validate($params);
+        $places = [];
+
+        if ($result->place !== null && $result->place->streetName !== null) {
+            $places = $this->getPlaces(
+                $result->place->municipalityId,
+                $result->place->streetName,
+            );
+        }
+
+        return [
+            'result' => $result,
+            'places' => $places,
+        ];
+    }
+
+    /**
      * Clear cache
      */
     public function clearCache(): void

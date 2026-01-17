@@ -94,6 +94,48 @@ $places = $this->ruianClient->getPlaces(554782, 'Kaprova');
 // Returns: Place[] with cp, co, ce, zip, placeId
 ```
 
+### Municipality Autocomplete (Typeahead)
+
+Search municipalities by name for autocomplete/typeahead functionality:
+
+```php
+// Search municipalities starting with "Pra"
+$results = $this->ruianClient->searchMunicipalities('Pra', 10);
+// Returns: Municipality[] matching the query, max 10 results
+
+// Results prioritize:
+// 1. Names starting with query (Praha, Prachatice, ...)
+// 2. Names containing query (Nová Praha, ...)
+
+// Get all municipalities (cached for 7 days)
+$allMunicipalities = $this->ruianClient->getAllMunicipalities();
+// Returns: Municipality[] - all ~6300 Czech municipalities
+```
+
+### Combined Queries
+
+Convenience methods for common use cases:
+
+```php
+// Find address by components (simpler than validate())
+$result = $this->ruianClient->findAddress(
+    municipalityName: 'Praha',
+    street: 'Kaprova',
+    cp: '14',
+);
+
+// Validate and get all places on the matched street
+$data = $this->ruianClient->validateWithPlaces([
+    'municipalityName' => 'Praha',
+    'street' => 'Kaprova',
+]);
+// Returns: ['result' => ValidateResult, 'places' => Place[]]
+
+// Get complete address hierarchy for a municipality
+$hierarchy = $this->ruianClient->getAddressHierarchy(554782);
+// Returns: ['region' => Region, 'municipality' => Municipality, 'streets' => Street[]]
+```
+
 ### Response DTOs
 
 #### ValidateResult

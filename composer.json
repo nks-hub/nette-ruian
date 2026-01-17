@@ -20,7 +20,7 @@
     ],
     "homepage": "https://github.com/nks-hub/nette-ruian",
     "require": {
-        "php": ">=8.1",
+        "php": ">=8.2",
         "nette/di": "^3.1",
         "nette/caching": "^3.2",
         "nette/utils": "^3.2 || ^4.0",

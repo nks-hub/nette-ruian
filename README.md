@@ -4,7 +4,7 @@ Nette extension for [RUIAN API](https://ruian.fnx.io/) - Czech Address Registry 
 
 ## Requirements
 
-- PHP 8.1+
+- PHP 8.2+
 - Nette 3.1+
 
 ## Installation

@@ -15,6 +15,7 @@ use NksHub\NetteRuian\Response\Place;
 use NksHub\NetteRuian\Response\Region;
 use NksHub\NetteRuian\Response\Street;
 use NksHub\NetteRuian\Response\ValidateResult;
+use SensitiveParameter;
 
 /**
  * RUIAN API Client
@@ -23,19 +24,32 @@ use NksHub\NetteRuian\Response\ValidateResult;
  *
  * @see https://ruian.fnx.io/
  */
-class RuianClient
+final readonly class RuianClient
 {
-    private const BASE_URL = 'https://ruian.fnx.io/api/v1/ruian';
+    private const string BASE_URL = 'https://ruian.fnx.io/api/v1/ruian';
+    private const string CACHE_NAMESPACE = 'NksHub.Ruian';
+    private const string CACHE_KEY_ALL_MUNICIPALITIES = 'all_municipalities';
+
+    private const int HTTP_OK = 200;
+    private const int HTTP_UNAUTHORIZED = 401;
+    private const int HTTP_UNPROCESSABLE = 422;
+    private const int HTTP_RATE_LIMIT = 429;
+    private const int HTTP_SERVER_ERROR = 500;
+
+    private const int MUNICIPALITIES_CACHE_MULTIPLIER = 7;
+    private const int MIN_SEARCH_LENGTH = 2;
+    private const int HTTP_TIMEOUT = 30;
 
     private Cache $cache;
 
     public function __construct(
-        private readonly string $apiKey,
+        #[SensitiveParameter]
+        private string $apiKey,
         Storage $storage,
-        private readonly bool $cacheEnabled = true,
-        private readonly int $cacheTtl = 86400,
+        private bool $cacheEnabled = true,
+        private int $cacheTtl = 86400,
     ) {
-        $this->cache = new Cache($storage, 'NksHub.Ruian');
+        $this->cache = new Cache($storage, self::CACHE_NAMESPACE);
     }
 
     /**
@@ -55,8 +69,7 @@ class RuianClient
      */
     public function validate(array $params): ValidateResult
     {
-        $data = $this->request('validate', $params);
-        return ValidateResult::fromArray($data);
+        return ValidateResult::fromArray($this->request('validate', $params));
     }
 
     /**
@@ -70,13 +83,13 @@ class RuianClient
     /**
      * Get all regions (kraje)
      *
-     * @return Region[]
+     * @return list<Region>
      */
     public function getRegions(): array
     {
         $data = $this->request('build/regions', []);
         return array_map(
-            fn(array $item) => Region::fromArray($item),
+            static fn(array $item): Region => Region::fromArray($item),
             $data['data'] ?? [],
         );
     }
@@ -84,13 +97,13 @@ class RuianClient
     /**
      * Get municipalities (obce) for a region
      *
-     * @return Municipality[]
+     * @return list<Municipality>
      */
     public function getMunicipalities(string $regionId): array
     {
         $data = $this->request('build/municipalities', ['regionId' => $regionId]);
         return array_map(
-            fn(array $item) => Municipality::fromArray($item),
+            static fn(array $item): Municipality => Municipality::fromArray($item),
             $data['data'] ?? [],
         );
     }
@@ -98,13 +111,13 @@ class RuianClient
     /**
      * Get streets for a municipality
      *
-     * @return Street[]
+     * @return list<Street>
      */
     public function getStreets(int $municipalityId): array
     {
         $data = $this->request('build/streets', ['municipalityId' => $municipalityId]);
         return array_map(
-            fn(array $item) => Street::fromArray($item),
+            static fn(array $item): Street => Street::fromArray($item),
             $data['data'] ?? [],
         );
     }
@@ -112,7 +125,7 @@ class RuianClient
     /**
      * Get places (address points) for a street
      *
-     * @return Place[]
+     * @return list<Place>
      */
     public function getPlaces(int $municipalityId, string $streetName): array
     {
@@ -121,7 +134,7 @@ class RuianClient
             'streetName' => $streetName,
         ]);
         return array_map(
-            fn(array $item) => Place::fromArray($item),
+            static fn(array $item): Place => Place::fromArray($item),
             $data['data'] ?? [],
         );
     }
@@ -131,35 +144,31 @@ class RuianClient
      *
      * Results are cached for longer period (7 days by default) since municipality list rarely changes.
      *
-     * @return Municipality[]
+     * @return list<Municipality>
      */
     public function getAllMunicipalities(): array
     {
-        $cacheKey = 'all_municipalities';
-
         if ($this->cacheEnabled) {
-            $cached = $this->cache->load($cacheKey);
+            /** @var list<Municipality>|null $cached */
+            $cached = $this->cache->load(self::CACHE_KEY_ALL_MUNICIPALITIES);
             if ($cached !== null) {
                 return $cached;
             }
         }
 
-        $regions = $this->getRegions();
         $municipalities = [];
-
-        foreach ($regions as $region) {
-            $regionMunicipalities = $this->getMunicipalities($region->regionId);
-            foreach ($regionMunicipalities as $municipality) {
-                $municipalities[] = $municipality;
-            }
+        foreach ($this->getRegions() as $region) {
+            $municipalities = [...$municipalities, ...$this->getMunicipalities($region->regionId)];
         }
 
-        // Sort by name
-        usort($municipalities, fn(Municipality $a, Municipality $b) => strcmp($a->municipalityName, $b->municipalityName));
+        usort(
+            $municipalities,
+            static fn(Municipality $a, Municipality $b): int => strcmp($a->municipalityName, $b->municipalityName),
+        );
 
         if ($this->cacheEnabled) {
-            $this->cache->save($cacheKey, $municipalities, [
-                Cache::Expire => $this->cacheTtl * 7, // Cache for 7x longer (week)
+            $this->cache->save(self::CACHE_KEY_ALL_MUNICIPALITIES, $municipalities, [
+                Cache::Expire => $this->cacheTtl * self::MUNICIPALITIES_CACHE_MULTIPLIER,
             ]);
         }
 
@@ -169,54 +178,40 @@ class RuianClient
     /**
      * Search municipalities by name prefix (for autocomplete/typeahead)
      *
-     * @param string $query Search query (min 2 characters)
-     * @param int $limit Maximum results to return
-     * @return Municipality[]
+     * @param positive-int $limit Maximum results to return
+     * @return list<Municipality>
      */
     public function searchMunicipalities(string $query, int $limit = 10): array
     {
         $query = trim($query);
-        if (mb_strlen($query) < 2) {
+        if (mb_strlen($query) < self::MIN_SEARCH_LENGTH) {
             return [];
         }
 
         $queryLower = mb_strtolower($query);
-        $municipalities = $this->getAllMunicipalities();
-
-        $results = [];
         $startsWithResults = [];
         $containsResults = [];
 
-        foreach ($municipalities as $municipality) {
+        foreach ($this->getAllMunicipalities() as $municipality) {
             $nameLower = mb_strtolower($municipality->municipalityName);
 
             if (str_starts_with($nameLower, $queryLower)) {
                 $startsWithResults[] = $municipality;
+                if (count($startsWithResults) >= $limit) {
+                    break;
+                }
             } elseif (str_contains($nameLower, $queryLower)) {
                 $containsResults[] = $municipality;
             }
-
-            if (count($startsWithResults) >= $limit) {
-                break;
-            }
         }
 
-        // Prioritize results that start with query
-        $results = array_merge($startsWithResults, $containsResults);
-
-        return array_slice($results, 0, $limit);
+        return array_slice([...$startsWithResults, ...$containsResults], 0, $limit);
     }
 
     /**
      * Find full address by components (combined query)
      *
      * Convenience method that validates and returns full address details.
-     *
-     * @param string $municipalityName Municipality name
-     * @param string|null $street Street name (optional)
-     * @param string|null $cp Descriptive number (optional)
-     * @param string|null $co Orientation number (optional)
-     * @param int|string|null $zip Postal code (optional)
      */
     public function findAddress(
         string $municipalityName,
@@ -248,11 +243,10 @@ class RuianClient
      *
      * Returns all streets for a municipality with region context.
      *
-     * @return array{region: Region|null, municipality: Municipality|null, streets: Street[]}
+     * @return array{region: Region|null, municipality: Municipality|null, streets: list<Street>}
      */
     public function getAddressHierarchy(int $municipalityId): array
     {
-        // First validate to get region info
         $validateResult = $this->validate(['municipalityId' => $municipalityId]);
 
         $region = null;
@@ -268,26 +262,25 @@ class RuianClient
             $municipality = new Municipality($place->municipalityId, $place->municipalityName);
         }
 
-        $streets = $this->getStreets($municipalityId);
-
         return [
             'region' => $region,
             'municipality' => $municipality,
-            'streets' => $streets,
+            'streets' => $this->getStreets($municipalityId),
         ];
     }
 
     /**
      * Validate and get full address details including all place options on the street
      *
-     * @return array{result: ValidateResult, places: Place[]}
+     * @param array<string, mixed> $params
+     * @return array{result: ValidateResult, places: list<Place>}
      */
     public function validateWithPlaces(array $params): array
     {
         $result = $this->validate($params);
         $places = [];
 
-        if ($result->place !== null && $result->place->streetName !== null) {
+        if ($result->place?->streetName !== null) {
             $places = $this->getPlaces(
                 $result->place->municipalityId,
                 $result->place->streetName,
@@ -309,8 +302,6 @@ class RuianClient
     }
 
     /**
-     * Make API request
-     *
      * @param array<string, mixed> $params
      * @return array<string, mixed>
      */
@@ -319,14 +310,14 @@ class RuianClient
         $cacheKey = $this->getCacheKey($endpoint, $params);
 
         if ($this->cacheEnabled) {
+            /** @var array<string, mixed>|null $cached */
             $cached = $this->cache->load($cacheKey);
             if ($cached !== null) {
                 return $cached;
             }
         }
 
-        $url = $this->buildUrl($endpoint, $params);
-        $response = $this->httpGet($url);
+        $response = $this->httpGet($this->buildUrl($endpoint, $params));
         $data = $this->parseResponse($response);
 
         if ($this->cacheEnabled) {
@@ -338,12 +329,20 @@ class RuianClient
         return $data;
     }
 
+    /**
+     * @param array<string, mixed> $params
+     */
     private function buildUrl(string $endpoint, array $params): string
     {
-        $params['apiKey'] = $this->apiKey;
-        return self::BASE_URL . '/' . $endpoint . '?' . http_build_query($params);
+        return self::BASE_URL . '/' . $endpoint . '?' . http_build_query([
+            ...$params,
+            'apiKey' => $this->apiKey,
+        ]);
     }
 
+    /**
+     * @param array<string, mixed> $params
+     */
     private function getCacheKey(string $endpoint, array $params): string
     {
         ksort($params);
@@ -362,7 +361,7 @@ class RuianClient
                     'Accept: application/json',
                     'User-Agent: nks-hub/nette-ruian',
                 ],
-                'timeout' => 30,
+                'timeout' => self::HTTP_TIMEOUT,
                 'ignore_errors' => true,
             ],
             'ssl' => [
@@ -374,14 +373,13 @@ class RuianClient
         $body = @file_get_contents($url, false, $context);
 
         if ($body === false) {
-            throw new RuianApiException('Failed to connect to RUIAN API');
+            throw RuianApiException::connectionFailed();
         }
 
-        // Get HTTP status code from headers
-        $code = 500;
+        $code = self::HTTP_SERVER_ERROR;
         if (isset($http_response_header[0])) {
-            preg_match('/HTTP\/\d+\.?\d*\s+(\d+)/', $http_response_header[0], $matches);
-            $code = (int) ($matches[1] ?? 500);
+            preg_match('/HTTP\/[\d.]+\s+(\d+)/', $http_response_header[0], $matches);
+            $code = (int) ($matches[1] ?? self::HTTP_SERVER_ERROR);
         }
 
         return ['code' => $code, 'body' => $body];
@@ -393,33 +391,23 @@ class RuianClient
      */
     private function parseResponse(array $response): array
     {
-        $code = $response['code'];
-        $body = $response['body'];
+        ['code' => $code, 'body' => $body] = $response;
 
-        if ($code === 401) {
-            throw new RuianAuthException('Invalid API key');
-        }
-
-        if ($code === 429) {
-            throw new RuianRateLimitException('Rate limit exceeded (1000 requests/hour)');
-        }
-
-        if ($code === 422) {
-            throw new RuianApiException('Missing required parameters');
-        }
-
-        if ($code >= 500) {
-            throw new RuianApiException('RUIAN API server error');
-        }
-
-        if ($code !== 200) {
-            throw new RuianApiException('Unexpected HTTP status: ' . $code);
-        }
+        match ($code) {
+            self::HTTP_UNAUTHORIZED => throw RuianAuthException::invalidApiKey(),
+            self::HTTP_RATE_LIMIT => throw RuianRateLimitException::exceeded(),
+            self::HTTP_UNPROCESSABLE => throw RuianApiException::missingParameters(),
+            self::HTTP_OK => null,
+            default => $code >= self::HTTP_SERVER_ERROR
+                ? throw RuianApiException::serverError()
+                : throw RuianApiException::unexpectedStatus($code),
+        };
 
         try {
+            /** @var array<string, mixed> */
             return Json::decode($body, forceArrays: true);
         } catch (\Throwable $e) {
-            throw new RuianApiException('Invalid JSON response: ' . $e->getMessage());
+            throw RuianApiException::invalidJson($e->getMessage());
         }
     }
 }

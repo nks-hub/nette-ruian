@@ -7,17 +7,20 @@ namespace NksHub\NetteRuian\Response;
 /**
  * Place (Address point) DTO
  */
-final class Place
+final readonly class Place
 {
     public function __construct(
-        public readonly ?string $cp,
-        public readonly ?string $co,
-        public readonly ?string $ce,
-        public readonly int $zip,
-        public readonly int $placeId,
+        public ?string $cp,
+        public ?string $co,
+        public ?string $ce,
+        public int $zip,
+        public int $placeId,
     ) {
     }
 
+    /**
+     * @param array{placeCp?: string|int|null, placeCo?: string|int|null, placeCe?: string|int|null, placeZip: int|string, placeId: int|string} $data
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -34,19 +37,11 @@ final class Place
      */
     public function getFormattedNumber(): string
     {
-        $parts = [];
-
-        if ($this->cp !== null) {
-            $parts[] = $this->cp;
-        }
-
-        if ($this->co !== null) {
-            $parts[] = $this->co;
-        }
-
-        if ($this->ce !== null) {
-            $parts[] = 'ev.' . $this->ce;
-        }
+        $parts = array_filter([
+            $this->cp,
+            $this->co,
+            $this->ce !== null ? "ev.{$this->ce}" : null,
+        ]);
 
         return implode('/', $parts);
     }

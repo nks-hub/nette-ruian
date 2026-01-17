@@ -7,14 +7,17 @@ namespace NksHub\NetteRuian\Response;
 /**
  * Street DTO
  */
-final class Street
+final readonly class Street
 {
     public function __construct(
-        public readonly ?string $streetName,
-        public readonly ?string $streetLessPartName,
+        public ?string $streetName,
+        public ?string $streetLessPartName,
     ) {
     }
 
+    /**
+     * @param array{streetName?: string|null, streetLessPartName?: string|null} $data
+     */
     public static function fromArray(array $data): self
     {
         return new self(

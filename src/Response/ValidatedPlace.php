@@ -7,25 +7,28 @@ namespace NksHub\NetteRuian\Response;
 /**
  * Validated place (address) DTO
  */
-final class ValidatedPlace
+final readonly class ValidatedPlace
 {
     public function __construct(
-        public readonly float $confidence,
-        public readonly ?string $regionId,
-        public readonly ?string $regionName,
-        public readonly int $municipalityId,
-        public readonly string $municipalityName,
-        public readonly ?int $municipalityPartId,
-        public readonly ?string $municipalityPartName,
-        public readonly ?string $streetName,
-        public readonly ?string $cp,
-        public readonly ?string $co,
-        public readonly ?string $ce,
-        public readonly int $zip,
-        public readonly int $ruianId,
+        public float $confidence,
+        public ?string $regionId,
+        public ?string $regionName,
+        public int $municipalityId,
+        public string $municipalityName,
+        public ?int $municipalityPartId,
+        public ?string $municipalityPartName,
+        public ?string $streetName,
+        public ?string $cp,
+        public ?string $co,
+        public ?string $ce,
+        public int $zip,
+        public int $ruianId,
     ) {
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -52,9 +55,8 @@ final class ValidatedPlace
     {
         $parts = [];
 
-        // Street and number
         if ($this->streetName !== null) {
-            $parts[] = $this->streetName . ' ' . $this->getFormattedNumber();
+            $parts[] = "{$this->streetName} {$this->getFormattedNumber()}";
         } else {
             $houseNumber = $this->getFormattedNumber();
             if ($houseNumber !== '') {
@@ -63,10 +65,7 @@ final class ValidatedPlace
             }
         }
 
-        // Municipality
         $parts[] = $this->municipalityName;
-
-        // ZIP
         $parts[] = (string) $this->zip;
 
         return implode(', ', array_filter($parts));
@@ -77,20 +76,12 @@ final class ValidatedPlace
      */
     public function getFormattedNumber(): string
     {
-        $numbers = [];
+        $parts = array_filter([
+            $this->cp,
+            $this->co,
+            $this->ce !== null ? "ev.{$this->ce}" : null,
+        ]);
 
-        if ($this->cp !== null) {
-            $numbers[] = $this->cp;
-        }
-
-        if ($this->co !== null) {
-            $numbers[] = $this->co;
-        }
-
-        if ($this->ce !== null) {
-            $numbers[] = 'ev.' . $this->ce;
-        }
-
-        return implode('/', $numbers);
+        return implode('/', $parts);
     }
 }

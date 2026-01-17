@@ -7,14 +7,17 @@ namespace NksHub\NetteRuian\Response;
 /**
  * Municipality (Obec) DTO
  */
-final class Municipality
+final readonly class Municipality
 {
     public function __construct(
-        public readonly int $municipalityId,
-        public readonly string $municipalityName,
+        public int $municipalityId,
+        public string $municipalityName,
     ) {
     }
 
+    /**
+     * @param array{municipalityId: int|string, municipalityName: string} $data
+     */
     public static function fromArray(array $data): self
     {
         return new self(

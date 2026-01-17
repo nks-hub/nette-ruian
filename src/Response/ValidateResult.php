@@ -7,20 +7,23 @@ namespace NksHub\NetteRuian\Response;
 /**
  * Address validation result DTO
  */
-final class ValidateResult
+final readonly class ValidateResult
 {
-    public const STATUS_ERROR = 'ERROR';
-    public const STATUS_NOT_FOUND = 'NOT_FOUND';
-    public const STATUS_POSSIBLE = 'POSSIBLE';
-    public const STATUS_MATCH = 'MATCH';
+    public const string STATUS_ERROR = 'ERROR';
+    public const string STATUS_NOT_FOUND = 'NOT_FOUND';
+    public const string STATUS_POSSIBLE = 'POSSIBLE';
+    public const string STATUS_MATCH = 'MATCH';
 
     public function __construct(
-        public readonly string $status,
-        public readonly ?string $message,
-        public readonly ?ValidatedPlace $place,
+        public string $status,
+        public ?string $message,
+        public ?ValidatedPlace $place,
     ) {
     }
 
+    /**
+     * @param array{status: string, message?: string|null, place?: array<string, mixed>|null} $data
+     */
     public static function fromArray(array $data): self
     {
         return new self(

@@ -1,0 +1,55 @@
+{
+    "name": "nks-hub/nette-ruian",
+    "description": "Nette extension for RUIAN (Czech Address Registry) API client with caching support",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "nette",
+        "ruian",
+        "address",
+        "czech",
+        "api",
+        "validation",
+        "geocoding"
+    ],
+    "authors": [
+        {
+            "name": "nks-hub",
+            "email": "lukyrys@gmail.com"
+        }
+    ],
+    "homepage": "https://github.com/nks-hub/nette-ruian",
+    "require": {
+        "php": ">=8.1",
+        "nette/di": "^3.1",
+        "nette/caching": "^3.2",
+        "nette/utils": "^3.2 || ^4.0",
+        "nette/http": "^3.2"
+    },
+    "require-dev": {
+        "nette/tester": "^2.5",
+        "phpstan/phpstan": "^1.10",
+        "phpstan/phpstan-nette": "^1.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "NksHub\\NetteRuian\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "NksHub\\NetteRuian\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "nette": {
+            "extensions": {
+                "ruian": "NksHub\\NetteRuian\\DI\\RuianExtension"
+            }
+        }
+    },
+    "minimum-stability": "stable"
+}

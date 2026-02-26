@@ -1,3 +1,8 @@
+[![Latest Stable Version](https://poser.pugx.org/nks-hub/nette-ruian/v)](https://packagist.org/packages/nks-hub/nette-ruian)
+[![Total Downloads](https://poser.pugx.org/nks-hub/nette-ruian/downloads)](https://packagist.org/packages/nks-hub/nette-ruian)
+[![PHP Version](https://img.shields.io/badge/php-%3E%3D8.2-8892BF.svg)](https://php.net/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 # Nette RUIAN
 
 Nette extension for [RUIAN API](https://ruian.fnx.io/) - Czech Address Registry (Registr územní identifikace, adres a nemovitostí).
@@ -229,12 +234,28 @@ try {
 - Free tier: 1000 requests/hour
 - No SLA guarantees
 
-## Credits
+## Contributing
 
-This package is a Nette wrapper for the [RUIAN API](https://ruian.fnx.io/) provided by [fnx.io](https://fnx.io/).
+Contributions are welcome! For major changes, please open an issue first.
 
-**Disclaimer:** This package is not affiliated with fnx.io or the Czech government. The RUIAN data is provided by the Czech Office for Surveying, Mapping and Cadastre (CUZK).
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: description'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## Support
+
+- 📧 **Email:** dev@nks-hub.cz
+- 🐛 **Bug reports:** [GitHub Issues](https://github.com/nks-hub/nette-ruian/issues)
+- 📖 **RUIAN API:** [ruian.fnx.io](https://ruian.fnx.io/)
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+<p align="center">
+  Made with ❤️ by <a href="https://github.com/nks-hub">NKS Hub</a>
+</p>

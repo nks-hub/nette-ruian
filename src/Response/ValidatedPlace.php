@@ -9,6 +9,8 @@ namespace NksHub\NetteRuian\Response;
  */
 final readonly class ValidatedPlace
 {
+    use HouseNumberFormatTrait;
+
     public function __construct(
         public float $confidence,
         public ?string $regionId,
@@ -69,19 +71,5 @@ final readonly class ValidatedPlace
         $parts[] = (string) $this->zip;
 
         return implode(', ', array_filter($parts));
-    }
-
-    /**
-     * Get formatted house number
-     */
-    public function getFormattedNumber(): string
-    {
-        $parts = array_filter([
-            $this->cp,
-            $this->co,
-            $this->ce !== null ? "ev.{$this->ce}" : null,
-        ]);
-
-        return implode('/', $parts);
     }
 }

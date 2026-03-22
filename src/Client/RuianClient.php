@@ -346,7 +346,7 @@ final readonly class RuianClient
     private function getCacheKey(string $endpoint, array $params): string
     {
         ksort($params);
-        return md5($endpoint . '|' . serialize($params));
+        return md5($endpoint . '|' . json_encode($params, JSON_THROW_ON_ERROR));
     }
 
     /**

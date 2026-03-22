@@ -9,6 +9,8 @@ namespace NksHub\NetteRuian\Response;
  */
 final readonly class Place
 {
+    use HouseNumberFormatTrait;
+
     public function __construct(
         public ?string $cp,
         public ?string $co,
@@ -30,19 +32,5 @@ final readonly class Place
             zip: (int) $data['placeZip'],
             placeId: (int) $data['placeId'],
         );
-    }
-
-    /**
-     * Get formatted house number
-     */
-    public function getFormattedNumber(): string
-    {
-        $parts = array_filter([
-            $this->cp,
-            $this->co,
-            $this->ce !== null ? "ev.{$this->ce}" : null,
-        ]);
-
-        return implode('/', $parts);
     }
 }

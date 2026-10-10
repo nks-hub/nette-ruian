@@ -1,16 +1,29 @@
+# Nette RUIAN
+
 [![Latest Stable Version](https://poser.pugx.org/nks-hub/nette-ruian/v)](https://packagist.org/packages/nks-hub/nette-ruian)
 [![Total Downloads](https://poser.pugx.org/nks-hub/nette-ruian/downloads)](https://packagist.org/packages/nks-hub/nette-ruian)
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.2-8892BF.svg)](https://php.net/)
+[![Nette Version](https://img.shields.io/badge/nette-%5E3.1-blue.svg)](https://nette.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-# Nette RUIAN
-
 Nette extension for [RUIAN API](https://ruian.fnx.io/) - Czech Address Registry (Registr územní identifikace, adres a nemovitostí).
+
+## Features
+
+- ✅ **Address validation** - Validate by address components or directly by RUIAN ID, with match confidence
+- 🏗️ **Address builder** - Progressive selection region → municipality → street → address point
+- 🔎 **Municipality autocomplete** - Typeahead search across all ~6300 Czech municipalities
+- 🧭 **Combined queries** - Find address, validate with places, full address hierarchy in one call
+- 📦 **Typed DTOs** - `ValidateResult`, `ValidatedPlace`, `Region`, `Municipality`, `Street`, `Place`
+- 💾 **Caching** - Built on Nette Caching with configurable TTL
+- 🚨 **Typed exceptions** - Separate exceptions for invalid API key, rate limit and other API errors
+- 🎯 **Nette integration** - DI extension with auto-registration via `composer.json`
 
 ## Requirements
 
 - PHP 8.2+
 - Nette 3.1+
+- RUIAN API key from [ruian.fnx.io](https://ruian.fnx.io/)
 
 ## Installation
 
@@ -233,6 +246,12 @@ try {
 
 - Free tier: 1000 requests/hour
 - No SLA guarantees
+
+## Testing
+
+```bash
+php tests/HouseNumberFormatTest.php
+```
 
 ## Contributing
 

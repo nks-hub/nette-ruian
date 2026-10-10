@@ -6,7 +6,7 @@
 [![Nette Version](https://img.shields.io/badge/nette-%5E3.1-blue.svg)](https://nette.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Nette extension for [RUIAN API](https://ruian.fnx.io/) - Czech Address Registry (Registr územní identifikace, adres a nemovitostí).
+Nette DI extension and PHP client for the [RUIAN API](https://ruian.fnx.io/), the Czech address registry (Registr územní identifikace, adres a nemovitostí).
 
 ## Features
 
@@ -15,7 +15,7 @@ Nette extension for [RUIAN API](https://ruian.fnx.io/) - Czech Address Registry 
 - 🔎 **Municipality autocomplete** - Typeahead search across all ~6300 Czech municipalities
 - 🧭 **Combined queries** - Find address, validate with places, full address hierarchy in one call
 - 📦 **Typed DTOs** - `ValidateResult`, `ValidatedPlace`, `Region`, `Municipality`, `Street`, `Place`
-- 💾 **Caching** - Built on Nette Caching with configurable TTL
+- 💾 **Caching** - Responses stored in Nette Caching, TTL configurable (default 24 hours)
 - 🚨 **Typed exceptions** - Separate exceptions for invalid API key, rate limit and other API errors
 - 🎯 **Nette integration** - DI extension with auto-registration via `composer.json`
 
@@ -46,9 +46,9 @@ ruian:
         ttl: 86400         # Cache TTL in seconds (default: 86400 = 24 hours)
 ```
 
-### Getting API Key
+### Getting an API key
 
-Request your free API key at [ruian.fnx.io](https://ruian.fnx.io/). Free tier allows 1000 requests per hour.
+Request a free API key at [ruian.fnx.io](https://ruian.fnx.io/). Limits are listed under [API rate limits](#api-rate-limits).
 
 ## Usage
 
@@ -67,7 +67,7 @@ class AddressPresenter extends Nette\Application\UI\Presenter
 }
 ```
 
-### Validate Address
+### Validate an address
 
 ```php
 use NksHub\NetteRuian\Response\ValidateResult;
@@ -90,9 +90,9 @@ if ($result->isMatch()) {
 $result = $this->ruianClient->validateByRuianId(21692912);
 ```
 
-### Address Builder (Progressive Selection)
+### Address builder
 
-Build address step by step using cascading selectors:
+Each step takes an ID returned by the previous one:
 
 ```php
 // Step 1: Get all regions (kraje)
@@ -112,9 +112,7 @@ $places = $this->ruianClient->getPlaces(554782, 'Kaprova');
 // Returns: Place[] with cp, co, ce, zip, placeId
 ```
 
-### Municipality Autocomplete (Typeahead)
-
-Search municipalities by name for autocomplete/typeahead functionality:
+### Municipality autocomplete
 
 ```php
 // Search municipalities starting with "Pra"
@@ -130,9 +128,7 @@ $allMunicipalities = $this->ruianClient->getAllMunicipalities();
 // Returns: Municipality[] - all ~6300 Czech municipalities
 ```
 
-### Combined Queries
-
-Convenience methods for common use cases:
+### Combined queries
 
 ```php
 // Find address by components (simpler than validate())
@@ -191,7 +187,7 @@ $place->getFormattedAddress();  // Full formatted address
 $place->getFormattedNumber();   // Formatted house number (cp/co or ev.ce)
 ```
 
-### Validation Parameters
+### Validation parameters
 
 | Parameter | Description |
 |-----------|-------------|
@@ -208,7 +204,7 @@ $place->getFormattedNumber();   // Formatted house number (cp/co or ev.ce)
 
 ### Caching
 
-Caching is enabled by default to reduce API calls. Cache is stored using Nette's caching system.
+Responses are cached in Nette Caching by default.
 
 ```php
 // Clear cache manually
@@ -224,7 +220,7 @@ ruian:
         enabled: false
 ```
 
-### Exception Handling
+### Exception handling
 
 ```php
 use NksHub\NetteRuian\Exception\RuianApiException;
@@ -242,7 +238,7 @@ try {
 }
 ```
 
-## API Rate Limits
+## API rate limits
 
 - Free tier: 1000 requests/hour
 - No SLA guarantees

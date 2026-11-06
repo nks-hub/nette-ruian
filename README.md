@@ -22,6 +22,7 @@ Nette DI extension and PHP client for the [RUIAN API](https://ruian.fnx.io/), th
 ## Requirements
 
 - PHP 8.2+
+- `ext-intl` (optional): Czech collation for municipality sorting; without it a built-in approximation is used
 - Nette 3.1+
 - RUIAN API key from [ruian.fnx.io](https://ruian.fnx.io/)
 
@@ -117,7 +118,7 @@ $places = $this->ruianClient->getPlaces(554782, 'Kaprova');
 ```php
 // Search municipalities starting with "Pra"
 $results = $this->ruianClient->searchMunicipalities('Pra', 10);
-// Returns: Municipality[] matching the query, max 10 results
+// Returns: Municipality[] matching the query, max 10 results, in Czech alphabetical order
 
 // Results prioritize:
 // 1. Names starting with query (Praha, Prachatice, ...)
@@ -125,7 +126,7 @@ $results = $this->ruianClient->searchMunicipalities('Pra', 10);
 
 // Get all municipalities (cached for 7 days)
 $allMunicipalities = $this->ruianClient->getAllMunicipalities();
-// Returns: Municipality[] - all ~6300 Czech municipalities
+// Returns: Municipality[] - all Czech municipalities, sorted in Czech order (Č after C, Ch after H, Ř after R, Š after S, Ž after Z)
 ```
 
 ### Combined queries
@@ -147,7 +148,9 @@ $data = $this->ruianClient->validateWithPlaces([
 
 // Get complete address hierarchy for a municipality
 $hierarchy = $this->ruianClient->getAddressHierarchy(554782);
-// Returns: ['region' => Region, 'municipality' => Municipality, 'streets' => Street[]]
+// Returns: ['region' => Region|null, 'municipality' => Municipality|null, 'streets' => Street[]]
+// region and municipality are null when the ID is not found in any region.
+// The region is looked up by listing the municipalities of each region (up to 14 requests, cached).
 ```
 
 ### Response DTOs
@@ -245,8 +248,11 @@ try {
 
 ## Testing
 
+Tests use [Nette Tester](https://tester.nette.org/) and replace the HTTP layer with canned responses, so they run offline:
+
 ```bash
-php tests/HouseNumberFormatTest.php
+composer install
+composer test
 ```
 
 ## Contributing

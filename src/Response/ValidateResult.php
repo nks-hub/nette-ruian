@@ -9,10 +9,10 @@ namespace NksHub\NetteRuian\Response;
  */
 final readonly class ValidateResult
 {
-    public const string STATUS_ERROR = 'ERROR';
-    public const string STATUS_NOT_FOUND = 'NOT_FOUND';
-    public const string STATUS_POSSIBLE = 'POSSIBLE';
-    public const string STATUS_MATCH = 'MATCH';
+    public const STATUS_ERROR = 'ERROR';
+    public const STATUS_NOT_FOUND = 'NOT_FOUND';
+    public const STATUS_POSSIBLE = 'POSSIBLE';
+    public const STATUS_MATCH = 'MATCH';
 
     public function __construct(
         public string $status,

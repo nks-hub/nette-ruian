@@ -9,7 +9,7 @@ namespace NksHub\NetteRuian\Exception;
  */
 final class RuianAuthException extends RuianException
 {
-    private const string DEFAULT_MESSAGE = 'Invalid API key';
+    private const DEFAULT_MESSAGE = 'Invalid API key';
 
     public static function invalidApiKey(): self
     {

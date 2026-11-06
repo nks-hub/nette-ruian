@@ -15,6 +15,7 @@ use NksHub\NetteRuian\Response\Place;
 use NksHub\NetteRuian\Response\Region;
 use NksHub\NetteRuian\Response\Street;
 use NksHub\NetteRuian\Response\ValidateResult;
+use NksHub\NetteRuian\Support\CzechCollator;
 use SensitiveParameter;
 
 /**
@@ -26,28 +27,32 @@ use SensitiveParameter;
  */
 final readonly class RuianClient
 {
-    private const string BASE_URL = 'https://ruian.fnx.io/api/v1/ruian';
-    private const string CACHE_NAMESPACE = 'NksHub.Ruian';
-    private const string CACHE_KEY_ALL_MUNICIPALITIES = 'all_municipalities';
+    private const BASE_URL = 'https://ruian.fnx.io/api/v1/ruian';
+    private const CACHE_NAMESPACE = 'NksHub.Ruian';
+    private const CACHE_KEY_ALL_MUNICIPALITIES = 'all_municipalities';
 
-    private const int HTTP_OK = 200;
-    private const int HTTP_UNAUTHORIZED = 401;
-    private const int HTTP_UNPROCESSABLE = 422;
-    private const int HTTP_RATE_LIMIT = 429;
-    private const int HTTP_SERVER_ERROR = 500;
+    private const HTTP_OK = 200;
+    private const HTTP_UNAUTHORIZED = 401;
+    private const HTTP_UNPROCESSABLE = 422;
+    private const HTTP_RATE_LIMIT = 429;
+    private const HTTP_SERVER_ERROR = 500;
 
-    private const int MUNICIPALITIES_CACHE_MULTIPLIER = 7;
-    private const int MIN_SEARCH_LENGTH = 2;
-    private const int HTTP_TIMEOUT = 30;
+    private const MUNICIPALITIES_CACHE_MULTIPLIER = 7;
+    private const MIN_SEARCH_LENGTH = 2;
+    private const HTTP_TIMEOUT = 30;
 
     private Cache $cache;
 
+    /**
+     * @param (\Closure(string): array{code: int, body: string})|null $httpGet replaces the HTTP transport (used by tests)
+     */
     public function __construct(
         #[SensitiveParameter]
         private string $apiKey,
         Storage $storage,
         private bool $cacheEnabled = true,
         private int $cacheTtl = 86400,
+        private ?\Closure $httpGet = null,
     ) {
         $this->cache = new Cache($storage, self::CACHE_NAMESPACE);
     }
@@ -163,7 +168,7 @@ final readonly class RuianClient
 
         usort(
             $municipalities,
-            static fn(Municipality $a, Municipality $b): int => strcmp($a->municipalityName, $b->municipalityName),
+            static fn(Municipality $a, Municipality $b): int => CzechCollator::compare($a->municipalityName, $b->municipalityName),
         );
 
         if ($this->cacheEnabled) {
@@ -241,25 +246,25 @@ final readonly class RuianClient
     /**
      * Get complete address hierarchy (region -> municipality -> streets)
      *
-     * Returns all streets for a municipality with region context.
+     * Returns all streets for a municipality with region context. The region is found by
+     * listing municipalities of each region (cached), because the validate endpoint cannot
+     * be queried by municipality ID alone.
      *
      * @return array{region: Region|null, municipality: Municipality|null, streets: list<Street>}
      */
     public function getAddressHierarchy(int $municipalityId): array
     {
-        $validateResult = $this->validate(['municipalityId' => $municipalityId]);
-
         $region = null;
         $municipality = null;
 
-        if ($validateResult->place !== null) {
-            $place = $validateResult->place;
-
-            if ($place->regionId !== null && $place->regionName !== null) {
-                $region = new Region($place->regionId, $place->regionName);
+        foreach ($this->getRegions() as $candidate) {
+            foreach ($this->getMunicipalities($candidate->regionId) as $item) {
+                if ($item->municipalityId === $municipalityId) {
+                    $region = $candidate;
+                    $municipality = $item;
+                    break 2;
+                }
             }
-
-            $municipality = new Municipality($place->municipalityId, $place->municipalityName);
         }
 
         return [
@@ -354,6 +359,10 @@ final readonly class RuianClient
      */
     private function httpGet(string $url): array
     {
+        if ($this->httpGet !== null) {
+            return ($this->httpGet)($url);
+        }
+
         $context = stream_context_create([
             'http' => [
                 'method' => 'GET',

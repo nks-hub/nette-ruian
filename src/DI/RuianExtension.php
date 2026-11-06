@@ -28,7 +28,7 @@ use NksHub\NetteRuian\Client\RuianClient;
  */
 final class RuianExtension extends CompilerExtension
 {
-    private const int DEFAULT_CACHE_TTL = 86400;
+    private const DEFAULT_CACHE_TTL = 86400;
 
     public function getConfigSchema(): Schema
     {

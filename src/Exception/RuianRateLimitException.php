@@ -9,8 +9,8 @@ namespace NksHub\NetteRuian\Exception;
  */
 final class RuianRateLimitException extends RuianException
 {
-    private const string DEFAULT_MESSAGE = 'Rate limit exceeded (1000 requests/hour)';
-    private const int DEFAULT_LIMIT = 1000;
+    private const DEFAULT_MESSAGE = 'Rate limit exceeded (1000 requests/hour)';
+    private const DEFAULT_LIMIT = 1000;
 
     public function __construct(
         string $message = self::DEFAULT_MESSAGE,

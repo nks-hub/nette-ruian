@@ -31,6 +31,9 @@
         "phpstan/phpstan": "^1.10",
         "phpstan/phpstan-nette": "^1.2"
     },
+    "suggest": {
+        "ext-intl": "Czech collation for municipality sorting (a built-in approximation is used without it)"
+    },
     "autoload": {
         "psr-4": {
             "NksHub\\NetteRuian\\": "src/"
@@ -40,6 +43,9 @@
         "psr-4": {
             "NksHub\\NetteRuian\\Tests\\": "tests/"
         }
+    },
+    "scripts": {
+        "test": "tester -C tests"
     },
     "config": {
         "sort-packages": true
